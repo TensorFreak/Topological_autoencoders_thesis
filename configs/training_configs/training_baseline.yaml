@@ -1,0 +1,9 @@
+learning_rate: 0.001
+epochs: 10
+
+data_loader:
+    data_path: 'neural_data/22ht1.csv'
+    train_size: 0.7
+    val_size: 0.15
+    batch_size: 128
+    data_seed: 42

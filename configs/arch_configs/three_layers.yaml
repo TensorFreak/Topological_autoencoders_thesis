@@ -1,0 +1,3 @@
+input_dim: 554
+layers_dims: [500, 300, 100]
+activation: "relu"

@@ -1,0 +1,10 @@
+defaults:
+  - arch_configs: three_layers
+  - model_configs: model_baseline
+  - training_configs: training_baseline
+  - _self_
+
+experiment_name: "exp001"
+
+# This allows you to override any config value from command line
+# Command line arguments will take precedence

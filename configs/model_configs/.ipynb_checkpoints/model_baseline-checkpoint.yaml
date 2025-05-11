@@ -1,0 +1,5 @@
+complex_max_dim: 1
+min_persistence: 1
+top_loss_dims: [0, 1]
+dims_weights: [1, 0.3]
+lam: 0.3
