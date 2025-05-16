@@ -63,8 +63,8 @@ def main():
     
     topo_model = train_model(topo_model, optimizer, train_loader, val_loader, test_loader, device, n_epochs=n_epochs)
     metrics_values = evaluate_metrics(topo_model, test_loader, device)
-
-    report_file = 'test_reports/' + cfg['experiment_name'] + '.txt'
+    torch.save(topo_model, 'models_weights/topo_ae_' + cfg['experiment_name'] + '.bin')
+    report_file = 'test_reports/' + cfg['experiment_name'] + str(n_epochs) + '.txt'
     with open(report_file, 'w') as f:
         f.write("\n".join([metric_name + ' = ' + str(metrics_values[metric_name]) for metric_name in metrics_values.keys()]))
     print('Metrics saved to', report_file)
