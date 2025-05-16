@@ -4,7 +4,7 @@ from torch import optim
 from pathlib import Path
 from tqdm import tqdm
 from data_loader import loaders
-from models.autoencoder import LinearAutoencoder, TopologicalAutoencoder
+from models.autoencoder import LinearAutoencoder, TopologicalAutoencoder, DistancesTopologicalAutoencoder
 
 from train_model import train_model
 from evaluate_metrics import evaluate_metrics
@@ -19,21 +19,33 @@ def main():
             cfg = json.load(f)
 
     print(f"Running {cfg['experiment_name']}")
-    
+    print(cfg)
     model = LinearAutoencoder(
         input_dim=cfg['arch_config']['input_dim'],
         layers_dims=cfg['arch_config']['layers_dims'],
         activation=cfg['arch_config']['activation']
     )
-    topo_model = TopologicalAutoencoder(
-                    model,
-                    complex_max_dim=cfg['model_config']['complex_max_dim'],
-                    min_persistence=cfg['model_config']['min_persistence'],
-                    top_loss_dims=cfg['model_config']['top_loss_dims'],
-                    dims_weights=cfg['model_config']['dims_weights'],
-                    lam=cfg['model_config']['lam']
-    )
-    
+    assert cfg['distance_metric'] in ['euclidean', 'correlation'], 'Invalid distance metric!'
+    if cfg['distance_metric'] == 'euclidean':
+        print('euclidean metric is used')
+        topo_model = TopologicalAutoencoder(
+                        model,
+                        complex_max_dim=cfg['model_config']['complex_max_dim'],
+                        min_persistence=cfg['model_config']['min_persistence'],
+                        top_loss_dims=cfg['model_config']['top_loss_dims'],
+                        dims_weights=cfg['model_config']['dims_weights'],
+                        lam=cfg['model_config']['lam']
+        )
+    if cfg['distance_metric'] == 'correlation':
+        print('Correlatoin metric is used')
+        topo_model = DistancesTopologicalAutoencoder(
+                        model,
+                        complex_max_dim=cfg['model_config']['complex_max_dim'],
+                        #min_persistence=cfg['model_config']['min_persistence'],
+                        top_loss_dims=cfg['model_config']['top_loss_dims'],
+                        #dims_weights=cfg['model_config']['dims_weights'],
+                        lam=cfg['model_config']['lam']
+        )
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     print('Available device:', device)
     
