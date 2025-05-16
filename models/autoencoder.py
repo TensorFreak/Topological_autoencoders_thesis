@@ -3,6 +3,7 @@ import torch
 import torch.optim as optim
 
 import matplotlib.pyplot as plt
+from sklearn.metrics import pairwise_distances
 
 from tqdm import tqdm
 
@@ -11,8 +12,8 @@ from torch.utils.data import DataLoader
 # from torch_topological.nn import SignatureLoss
 # from torch_topological.nn import VietorisRipsComplex
 from modified_components.VR_complex import VietorisRipsComplex
-
 from modified_components.WeightedSignatureLoss import SignatureLoss
+from modified_components.DistancesSignatureLoss import DistancesSignatureLoss
 
 
 class LinearAutoencoder(torch.nn.Module):
@@ -92,9 +93,9 @@ class TopologicalAutoencoder(torch.nn.Module):
 
         self.lam = lam
         self.model = model
-        self.loss = SignatureLoss(p=2, weights=dims_weights)
+        self.loss = SignatureLoss(p=2, dimensions=top_loss_dims, weights=dims_weights)
 
-        self.vr = VietorisRipsComplex(dim=complex_max_dim, min_persistence=min_persistence, keep_infinite_features=True)
+        self.vr = VietorisRipsComplex(dim=complex_max_dim, min_persistence=min_persistence, keep_infinite_features=False)
 
     def forward(self, x):
         z = self.model.encode(x)
@@ -104,6 +105,35 @@ class TopologicalAutoencoder(torch.nn.Module):
 
         geom_loss = self.model(x)
         topo_loss = self.loss([x, pi_x], [z, pi_z])
+
+        loss = geom_loss + self.lam * topo_loss
+        return loss
+
+class DistancesTopologicalAutoencoder(torch.nn.Module):
+    """Wrapper for a topologically-regularised autoencoder.
+
+    This class uses another autoencoder model and imbues it with an
+    additional topology-based loss term.
+    """
+    def __init__(self, model, complex_max_dim=2, top_loss_dims=[0], lam=1.0):
+        super().__init__()
+
+        self.lam = lam
+        self.model = model
+        self.loss = DistancesSignatureLoss(dimensions=top_loss_dims)
+        self.vr = VietorisRipsComplex(dim=complex_max_dim)
+
+    def forward(self, x):
+        z = self.model.encode(x)
+
+        x_distances = torch.tensor(pairwise_distances(x.detach().cpu()))
+        z_distances =  torch.tensor(pairwise_distances(z.detach().cpu()))
+        
+        pi_x = self.vr(x_distances, treat_as_distances=True)
+        pi_z = self.vr(z_distances, treat_as_distances=True)
+
+        geom_loss = self.model(x)
+        topo_loss = self.loss([x_distances, pi_x], [z_distances, pi_z])
 
         loss = geom_loss + self.lam * topo_loss
         return loss
