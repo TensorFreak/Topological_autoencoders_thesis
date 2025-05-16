@@ -1,0 +1,6 @@
+knn_neighborhood_preservation = 0.257
+spearman_distance_correlation = 0.122
+procrustes_error = 0.99
+trustworthiness = 0.691
+mean_relative_rank_error = 11.382
+top_loss = 2.32
