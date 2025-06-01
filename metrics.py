@@ -3,9 +3,11 @@ import numpy as np
 from sklearn.neighbors import NearestNeighbors
 from sklearn.manifold import trustworthiness
 from sklearn.preprocessing import MinMaxScaler
+from sklearn.decomposition import PCA
 
 from scipy.linalg import orthogonal_procrustes
 from scipy.stats import spearmanr
+from scipy.stats import gaussian_kde
 from scipy.spatial.distance import pdist, squareform
 
 import torch
@@ -14,6 +16,46 @@ from torch_topological.nn import SignatureLoss
 from torch_topological.nn import VietorisRipsComplex
 
 
+
+def estimate_kl_divergence_kde(X_input, X_embed, bandwidth_input=None, bandwidth_embed=None):
+    """
+    Estimate KL divergence between densities of two point clouds using KDE.
+    
+    Args:
+        X_input: (n_samples, n_features_input) numpy array.
+        X_embed: (n_samples, n_features_embed) numpy array.
+        bandwidth_input: Bandwidth for KDE of X_input. If None, use Scott's rule.
+        bandwidth_embed: Bandwidth for KDE of X_embed. If None, use Scott's rule.
+    
+    Returns:
+        kl_divergence: Estimated KL divergence (D_KL(P_input || P_embed)).
+    """
+    
+    assert len(X_input) == len(X_embed), "Point clouds must have the same number of points."
+
+    X_input = normalize_points_cloud(X_input)
+    X_embed = normalize_points_cloud(X_embed)
+    #transform for same number of features
+    if X_input.shape[1] != X_embed.shape[1]:
+        min_dim = min(X_input.shape[1], X_embed.shape[1])
+        pca = PCA(n_components=min_dim)
+        X_input = pca.fit_transform(X_input)
+        X_embed = pca.fit_transform(X_embed)
+    
+    # Fit KDE models
+    kde_input = gaussian_kde(X_input.T, bw_method=bandwidth_input)
+    kde_embed = gaussian_kde(X_embed.T, bw_method=bandwidth_embed)
+    
+    # Compute log densities for X_input under both KDEs
+    log_p_input = kde_input.logpdf(X_input.T)  # log p_input(x)
+    log_q_input = kde_embed.logpdf(X_input.T)  # log p_embed(x)
+    
+    # KL divergence: D_KL(P_input || P_embed) = E_{x ~ P_input}[log p_input(x) - log p_embed(x)]
+    kl_divergence = np.mean(log_p_input - log_q_input)
+    
+    return kl_divergence
+
+    
 def normalize_points_cloud(X):
     X_norm = MinMaxScaler(feature_range=(-1, 1)).fit_transform(X)  
     return X_norm
