@@ -126,8 +126,8 @@ class DistancesTopologicalAutoencoder(torch.nn.Module):
     def forward(self, x):
         z = self.model.encode(x)
 
-        x_distances = torch.tensor(pairwise_distances(x.detach().cpu()))
-        z_distances =  torch.tensor(pairwise_distances(z.detach().cpu()))
+        x_distances = torch.tensor(pairwise_distances(x.detach().cpu(), metric='correlation'))
+        z_distances =  torch.tensor(pairwise_distances(z.detach().cpu(), metric='correlation'))
         
         pi_x = self.vr(x_distances, treat_as_distances=True)
         pi_z = self.vr(z_distances, treat_as_distances=True)
