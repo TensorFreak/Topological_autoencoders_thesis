@@ -7,7 +7,7 @@ from data_loader import loaders
 from models.autoencoder import LinearAutoencoder, TopologicalAutoencoder, DistancesTopologicalAutoencoder
 
 from train_model import train_model
-from evaluate_metrics import evaluate_metrics
+from evaluate_metrics import evaluate_source2latent_metrics, evaluate_latent2target_metrics
 
 import json
 
@@ -62,11 +62,19 @@ def main():
     n_epochs = cfg['training_config']['epochs']
     
     topo_model = train_model(topo_model, optimizer, train_loader, val_loader, test_loader, device, n_epochs=n_epochs)
-    metrics_values = evaluate_metrics(topo_model, test_loader, device)
     torch.save(topo_model, 'models_weights/topo_ae_' + cfg['experiment_name'] + '.bin')
     report_file = 'test_reports/' + cfg['experiment_name'] + str(n_epochs) + '.txt'
+
+    source2latent_metrics_values = evaluate_source2latent_metrics(topo_model, test_loader, device)
+    latent2target_metrics_values = evaluate_latent2target_metrics(topo_model, test_loader, device)
+
     with open(report_file, 'w') as f:
-        f.write("\n".join([metric_name + ' = ' + str(metrics_values[metric_name]) for metric_name in metrics_values.keys()]))
+        f.write('Source -> latent' + '\n' + '\n')
+        f.write("\n".join([metric_name + ' = ' + str(source2latent_metrics_values[metric_name]) for metric_name in source2latent_metrics_values.keys()]))
+        f.write('\n' + '\n' + 'Latent -> target' + '\n' + '\n')
+        f.write("\n".join([metric_name + ' = ' + str(latent2target_metrics_values[metric_name]) for metric_name in latent2target_metrics_values.keys()]))
+
+    
     print('Metrics saved to', report_file)
 
 if __name__ == "__main__":
