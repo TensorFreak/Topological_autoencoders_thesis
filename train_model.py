@@ -60,5 +60,10 @@ def train_model(topo_model, optimizer, train_loader, val_loader, test_loader, de
     avg_test_loss = test_loss / len(test_loader)
     print(f'\nFinal Test Loss: {avg_test_loss:.4f}')
 
-    return topo_model
+    loss_history = {
+        'training': train_losses,
+        'validation': val_losses
+    }
+    
+    return topo_model, loss_history
     

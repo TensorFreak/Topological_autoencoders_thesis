@@ -11,6 +11,7 @@ from evaluate_metrics import evaluate_source2latent_metrics, evaluate_latent2tar
 
 import json
 
+
 def main():
     parser = argparse.ArgumentParser(description='Process a JSON configuration file.')
     parser.add_argument('config_path', help='Path to the JSON configuration file')
@@ -61,21 +62,25 @@ def main():
     )
     n_epochs = cfg['training_config']['epochs']
     
-    topo_model = train_model(topo_model, optimizer, train_loader, val_loader, test_loader, device, n_epochs=n_epochs)
+    topo_model, loss_history = train_model(topo_model, optimizer, train_loader, val_loader, test_loader, device, n_epochs=n_epochs)
     torch.save(topo_model, 'models_weights/topo_ae_' + cfg['experiment_name'] + '.bin')
-    report_file = 'test_reports/' + cfg['experiment_name'] + str(n_epochs) + '.txt'
 
+    loss_report_file = 'test_reports/' + cfg['experiment_name'] + str(n_epochs) + '.json'
+    with open(loss_report_file, 'w') as f:
+        json.dump(loss_history, f)
+    print('Loss history saved to', loss_report_file)
+
+    metrics_report_file = 'test_reports/' + cfg['experiment_name'] + str(n_epochs) + '.txt'
     source2latent_metrics_values = evaluate_source2latent_metrics(topo_model, test_loader, device)
     latent2target_metrics_values = evaluate_latent2target_metrics(topo_model, test_loader, device)
-
-    with open(report_file, 'w') as f:
+    with open(metrics_report_file, 'w') as f:
         f.write('Source -> latent' + '\n' + '\n')
         f.write("\n".join([metric_name + ' = ' + str(source2latent_metrics_values[metric_name]) for metric_name in source2latent_metrics_values.keys()]))
         f.write('\n' + '\n' + 'Latent -> target' + '\n' + '\n')
         f.write("\n".join([metric_name + ' = ' + str(latent2target_metrics_values[metric_name]) for metric_name in latent2target_metrics_values.keys()]))
 
     
-    print('Metrics saved to', report_file)
+    print('Metrics saved to', metrics_report_file)
 
 if __name__ == "__main__":
     main()
