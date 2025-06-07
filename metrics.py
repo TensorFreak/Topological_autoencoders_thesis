@@ -14,23 +14,15 @@ import torch
 
 from torch_topological.nn import SignatureLoss
 from torch_topological.nn import VietorisRipsComplex
+import numpy as np
+from sklearn.neighbors import KernelDensity
+from scipy.stats import entropy
+from sklearn.preprocessing import StandardScaler
 
 
 
 def estimate_kl_divergence_kde(X_input, X_embed, bandwidth_input=None, bandwidth_embed=None):
-    """
-    Estimate KL divergence between densities of two point clouds using KDE.
-    
-    Args:
-        X_input: (n_samples, n_features_input) numpy array.
-        X_embed: (n_samples, n_features_embed) numpy array.
-        bandwidth_input: Bandwidth for KDE of X_input. If None, use Scott's rule.
-        bandwidth_embed: Bandwidth for KDE of X_embed. If None, use Scott's rule.
-    
-    Returns:
-        kl_divergence: Estimated KL divergence (D_KL(P_input || P_embed)).
-    """
-    
+
     assert len(X_input) == len(X_embed), "Point clouds must have the same number of points."
 
     X_input = normalize_points_cloud(X_input)
@@ -145,3 +137,51 @@ def calculate_top_loss(X_orig, X_latent, max_dim, loss_dims):
 
     top_loss = loss([X_orig, pi_orig], [X_latent, pi_latent])
     return top_loss.item()
+
+
+def compute_klsigma(X_input, X_latent, sigma=1, num_grid_points=1000):
+    """
+    Compute KL divergence between KDEs of input and latent representations.
+    
+    Parameters:
+        X_input (np.ndarray): Original input representations, shape (n_samples, N).
+        X_latent (np.ndarray): Latent space representations, shape (n_samples, M).
+        sigma (float): Bandwidth for Gaussian kernel (length scale σ).
+        num_grid_points (int): Number of points in the shared evaluation grid.
+
+    Returns:
+        float: KL divergence KL(p_input || p_latent)
+    """
+    scaler = StandardScaler()
+    X_input = scaler.fit_transform(X_input)
+    X_latent = scaler.fit_transform(X_latent)
+    
+    pca = PCA(n_components=1) # try min_dim later
+    X_input = pca.fit_transform(X_input)
+    X_latent = pca.fit_transform(X_latent)
+    
+    # Fit KDEs
+    kde_input = KernelDensity(kernel='gaussian', bandwidth=sigma).fit(X_input)
+    kde_latent = KernelDensity(kernel='gaussian', bandwidth=sigma).fit(X_latent)
+
+    # Define shared grid for evaluation
+    x_min = min(X_input.min(), X_latent.min())
+    x_max = max(X_input.max(), X_latent.max())
+    X_eval = np.linspace(x_min, x_max, num_grid_points).reshape(-1, 1)
+
+    # Evaluate log densities
+    log_p_input = kde_input.score_samples(X_eval)
+    log_p_latent = kde_latent.score_samples(X_eval)
+
+    # Convert to probability distributions
+    p_input = np.exp(log_p_input)
+    p_latent = np.exp(log_p_latent)
+
+    # Normalize to ensure they sum to 1 (discrete approximation)
+    p_input /= np.sum(p_input)
+    p_latent /= np.sum(p_latent)
+
+    # Compute KL divergence: KL(p_input || p_latent)
+    kl_div = entropy(p_input, p_latent)
+    
+    return kl_div
